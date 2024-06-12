@@ -16,11 +16,12 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      initialRoute: '/',
+      initialRoute: '/signup',
       routes: {
         '/': (context) => TasksScreen(),
         '/login': (context) => LoginScreen(),
-        '/signup': (context) => SignUpScreen(), // Add route to the signup screen
+        '/signup': (context) =>
+            SignUpScreen(), // Add route to the signup screen
       },
     );
   }
