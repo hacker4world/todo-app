@@ -1,9 +1,12 @@
-import 'dart:html' as html;
-import 'dart:typed_data';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:universal_html/html.dart' as html;
+import 'package:http/http.dart' as http;
+import 'Login.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -11,7 +14,7 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  Uint8List? _imageBytes; // Variable to store the selected image bytes
+  Uint8List? _imageBytes;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _cinController = TextEditingController();
@@ -25,30 +28,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool? _success = false;
 
   void _pickImage() async {
-    final html.FileUploadInputElement input = html.FileUploadInputElement();
-    input.accept = 'image/*';
-    input.click();
+    if (kIsWeb) {
+      final html.FileUploadInputElement input = html.FileUploadInputElement();
+      input.accept = 'image/*';
+      input.click();
 
-    input.onChange.listen((event) {
-      final files = input.files;
-      if (files != null && files.isNotEmpty) {
-        final reader = html.FileReader();
-        reader.readAsDataUrl(files[0]);
-        reader.onError.listen((error) => setState(() {
-              // Handle any error that occurs while reading the file
-            }));
-        reader.onLoad.first.then((event) {
-          final result = reader.result as String;
-          final List<String> parts = result.split(',');
-          final String contentType = parts[0].split(':')[1].split(';')[0];
-          final Uint8List data = Uint8List.fromList(base64.decode(parts[1]));
+      input.onChange.listen((event) {
+        final files = input.files;
+        if (files != null && files.isNotEmpty) {
+          final reader = html.FileReader();
+          reader.readAsDataUrl(files[0]);
+          reader.onError.listen((error) => setState(() {
+                // Handle any error that occurs while reading the file
+              }));
+          reader.onLoad.first.then((event) {
+            final result = reader.result as String;
+            final List<String> parts = result.split(',');
+            final String contentType = parts[0].split(':')[1].split(';')[0];
+            final Uint8List data = Uint8List.fromList(base64.decode(parts[1]));
 
-          setState(() {
-            _imageBytes = data;
+            setState(() {
+              _imageBytes = data;
+            });
           });
+        }
+      });
+    } else {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        final Uint8List imageBytes = await image.readAsBytes();
+        setState(() {
+          _imageBytes = imageBytes;
         });
       }
-    });
+    }
   }
 
   void _signUp() {
@@ -118,7 +133,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sign Up'),
+        title: Text(
+          'Sign Up',
+          style: TextStyle(color: Colors.white), // Set the text color to white
+        ),
+        backgroundColor: Colors.green, // Set the background color to green
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -259,9 +278,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ? Text('No image selected')
                     : Image.memory(_imageBytes!),
                 SizedBox(height: 16.0),
-                ElevatedButton(
-                  onPressed: _signUp,
-                  child: Text('Sign Up'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _signUp,
+                        child: Text('Sign Up'),
+                      ),
+                    ),
+                    SizedBox(width: 16.0),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LoginScreen(),
+                            ),
+                          );
+                        },
+                        child: Text('Login'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

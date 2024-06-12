@@ -1,6 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:testing/screens/ChecklistSelection.dart';
+import 'Signup.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -10,23 +13,28 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
+  String _errorMessage = '';
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   Future<void> _login() async {
-    // Validate the form fields
-    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      // Show an error message or handle validation as needed
-      return;
-    }
+    setState(() {
+      _errorMessage = '';
+    });
 
-    // Prepare the form data
     final formData = {
-      'email': _usernameController.text,
+      'username': _usernameController.text,
       'password': _passwordController.text,
     };
 
-    // Send the POST request to the backend
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'All fields are required';
+      });
+      return;
+    }
+
     final String apiUrl = 'http://localhost:3000/users/login';
-    final url = Uri.parse(apiUrl); // Replace with your backend URL
+    final url = Uri.parse(apiUrl);
 
     try {
       final response = await http.post(
@@ -35,23 +43,45 @@ class _LoginScreenState extends State<LoginScreen> {
         body: json.encode(formData),
       );
 
-      // Handle the response from the backend
       if (response.statusCode == 200) {
-        // Login successful
         final responseData = json.decode(response.body);
         final userId = responseData['userId'];
         final role = responseData['role'];
 
-        // Navigate to the next screen or perform other actions
+        if (role == null || role.toString().isEmpty) {
+          setState(() {
+            _errorMessage = 'Your account is awaiting admin verification';
+          });
+          return;
+        }
+
+        final SharedPreferences prefs = await _prefs;
+        prefs.setString('user_id', userId.toString()).then((bool success) {
+          if (success) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => ChecklistSelection()),
+            );
+          }
+        });
+
         print('Login successful: User ID - $userId, Role - $role');
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _errorMessage = 'User was not found';
+        });
+      } else if (response.statusCode == 401) {
+        setState(() {
+          _errorMessage = 'Invalid password';
+        });
       } else {
-        // Login failed
         print('Login failed: ${response.body}');
-        // Show an error message or handle the failure as needed
       }
     } catch (error) {
-      // Handle errors that occur during the request
       print('Error sending request: $error');
+      setState(() {
+        _errorMessage = 'An error occurred. Please try again later.';
+      });
     }
   }
 
@@ -66,10 +96,30 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            if (_errorMessage.isNotEmpty) ...[
+              Container(
+                color: Colors.red,
+                padding: EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.error, color: Colors.white),
+                    SizedBox(width: 8.0),
+                    Expanded(
+                      child: Text(
+                        _errorMessage,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16.0),
+            ],
             TextFormField(
               controller: _usernameController,
               decoration: InputDecoration(labelText: 'Username'),
             ),
+            SizedBox(height: 16),
             TextFormField(
               controller: _passwordController,
               obscureText: true,
@@ -79,6 +129,26 @@ class _LoginScreenState extends State<LoginScreen> {
             ElevatedButton(
               onPressed: _login,
               child: Text('Login'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            SizedBox(height: 16),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SignUpScreen()),
+                );
+              },
+              child: Text(
+                "Don't have an account? Sign up",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.green,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
             ),
           ],
         ),
