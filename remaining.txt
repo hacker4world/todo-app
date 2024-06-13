@@ -1,7 +1,4 @@
-completed tasks page
-report problem modal
-build for mobile and windows
+tasks page
+    -mark task completed
+    -report problem
 
---optional
-design tweaks
-remove print statements

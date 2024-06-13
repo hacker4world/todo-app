@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:testing/screens/Equipments.dart';
 import 'package:testing/screens/Tasks.dart';
 import 'package:testing/screens/TasksCompleted.dart';
 import 'screens/login.dart'; // Import your login screen file
@@ -18,13 +17,13 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      initialRoute: '/signup',
+      initialRoute: '/login',
       routes: {
         '/': (context) => TasksScreen(),
         '/login': (context) => LoginScreen(),
         '/signup': (context) =>
             SignUpScreen(), // Add route to the signup screen
-        '/equipments': (context) => EquipmentsScreen(),
+
         '/tasks': (context) => TasksScreen(),
         '/taskscompleted': (context) => CompletedTasksScreen(),
       },

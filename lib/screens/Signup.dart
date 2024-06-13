@@ -22,46 +22,82 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  final TextEditingController _branchIdController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String? _errorMessage;
   bool? _success = false;
+  String _fileName = "";
 
-  void _pickImage() async {
-    if (kIsWeb) {
-      final html.FileUploadInputElement input = html.FileUploadInputElement();
-      input.accept = 'image/*';
-      input.click();
+  int? _selectedBranchId; // Track the selected branch ID
+  List<Map<String, dynamic>> _branches = []; // List to store branches
 
-      input.onChange.listen((event) {
-        final files = input.files;
-        if (files != null && files.isNotEmpty) {
-          final reader = html.FileReader();
-          reader.readAsDataUrl(files[0]);
-          reader.onError.listen((error) => setState(() {
-                // Handle any error that occurs while reading the file
-              }));
-          reader.onLoad.first.then((event) {
-            final result = reader.result as String;
-            final List<String> parts = result.split(',');
-            final String contentType = parts[0].split(':')[1].split(';')[0];
-            final Uint8List data = Uint8List.fromList(base64.decode(parts[1]));
+  @override
+  void initState() {
+    super.initState();
+    _fetchBranches(); // Call method to fetch branches when screen initializes
+  }
 
-            setState(() {
-              _imageBytes = data;
-            });
-          });
-        }
-      });
-    } else {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  void _fetchBranches() async {
+    final String apiUrl = 'http://localhost:3000/branches';
+    final url = Uri.parse(apiUrl);
 
-      if (image != null) {
-        final Uint8List imageBytes = await image.readAsBytes();
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _imageBytes = imageBytes;
+          _branches = data.cast<Map<String, dynamic>>();
         });
+      } else {
+        print('Failed to load branches: ${response.statusCode}');
+        // Handle error loading branches
+      }
+    } catch (e) {
+      print('Error loading branches: $e');
+      // Handle network error
+    }
+  }
+
+  void _capturePhoto() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+      });
+
+      // Now send a POST request to your upload endpoint
+      final String uploadUrl =
+          'http://localhost:3000/upload'; // Replace with your endpoint
+      final Uri uri = Uri.parse(uploadUrl);
+      final multipartRequest = http.MultipartRequest('POST', uri);
+      multipartRequest.files.add(
+        http.MultipartFile.fromBytes(
+          'image',
+          bytes,
+          filename: image.path.split('/').last,
+        ),
+      );
+
+      try {
+        final streamedResponse = await multipartRequest.send();
+        final response = await http.Response.fromStream(streamedResponse);
+        if (response.statusCode == 201) {
+          final data = json.decode(response.body);
+          _fileName = data['fileName'];
+          setState(() {
+            _fileName = _fileName;
+          });
+          print(_fileName);
+          // Handle success if needed
+        } else {
+          print('Failed to upload image: ${response.statusCode}');
+          // Handle error
+        }
+      } catch (e) {
+        print('Error uploading image: $e');
+        // Handle network error
       }
     }
   }
@@ -79,11 +115,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return;
       }
 
-      String? base64Image;
-      if (_imageBytes != null) {
-        base64Image = base64Encode(_imageBytes!);
-      }
-
       final formData = {
         'name': _nameController.text,
         "username": _usernameController.text,
@@ -91,14 +122,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'email': _emailController.text,
         'password': _passwordController.text,
         'role': "",
-        "branchID": int.parse(_branchIdController.text),
-        'photo': base64Image,
+        "branchID": _selectedBranchId,
+        'photo': _fileName,
       };
 
       print(formData);
 
       final String apiUrl = 'http://localhost:3000/users/signup';
-      final url = Uri.parse(apiUrl); // Replace with your backend URL
+      final url = Uri.parse(apiUrl);
 
       http
           .post(
@@ -132,176 +163,222 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Sign Up',
-          style: TextStyle(color: Colors.white), // Set the text color to white
-        ),
-        backgroundColor: Colors.green, // Set the background color to green
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                if (_errorMessage != null) ...[
-                  Container(
-                    color: Colors.red,
-                    padding: EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error, color: Colors.white),
-                        SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.white),
+                Image.asset(
+                  'assets/images/logo.png', // Add a logo image in your assets
+                  height: 100,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Create Account',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      if (_errorMessage != null)
+                        Container(
+                          padding: EdgeInsets.all(8.0),
+                          color: Colors.red,
+                          child: Row(
+                            children: [
+                              Icon(Icons.error, color: Colors.white),
+                              SizedBox(width: 8.0),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16.0),
-                ],
-                if (_success == true) ...[
-                  Container(
-                    color: Colors.green,
-                    padding: EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check, color: Colors.white),
-                        SizedBox(width: 8.0),
-                        Expanded(
-                          child: Text(
-                            "Your account has been created and is awaiting admin approval",
-                            style: TextStyle(color: Colors.white),
+                      if (_success == true)
+                        Container(
+                          padding: EdgeInsets.all(8.0),
+                          color: Colors.green,
+                          child: const Row(
+                            children: [
+                              Icon(Icons.check, color: Colors.white),
+                              SizedBox(width: 8.0),
+                              Expanded(
+                                child: Text(
+                                  "Your account has been created and is awaiting admin approval",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16.0),
-                ],
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Name'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: InputDecoration(labelText: 'Username'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your username';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _cinController,
-                  decoration: InputDecoration(labelText: 'CIN'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your CIN';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: InputDecoration(labelText: 'Email'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _branchIdController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: <TextInputFormatter>[
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  decoration: InputDecoration(labelText: 'Branch ID'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your branch ID';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(labelText: 'Password'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration:
-                      const InputDecoration(labelText: 'Confirm password'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.0),
-                ElevatedButton(
-                  onPressed: _pickImage,
-                  child: Text('Select Photo'),
-                ),
-                SizedBox(height: 16.0),
-                _imageBytes == null
-                    ? Text('No image selected')
-                    : Image.memory(_imageBytes!),
-                SizedBox(height: 16.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _signUp,
-                        child: Text('Sign Up'),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Name',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                    SizedBox(width: 16.0),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
+                      SizedBox(height: 20),
+                      TextFormField(
+                        controller: _usernameController,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your username';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      TextFormField(
+                        controller: _cinController,
+                        decoration: InputDecoration(
+                          labelText: 'CIN',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your CIN';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      DropdownButtonFormField<int>(
+                        value: _selectedBranchId,
+                        onChanged: (int? value) {
+                          setState(() {
+                            _selectedBranchId = value;
+                          });
+                        },
+                        items: _branches.map((branch) {
+                          return DropdownMenuItem<int>(
+                            value: branch['branchID'],
+                            child: Text(branch['branchName']),
+                          );
+                        }).toList(),
+                        decoration: InputDecoration(
+                          labelText: 'Select Branch',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a branch';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please confirm your password';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 20),
+                      _imageBytes == null
+                          ? Text('No image selected')
+                          : Image.memory(_imageBytes!),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _capturePhoto,
+                        child: Text('Capture Photo'),
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _signUp,
+                        child: Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Theme.of(context).primaryColor,
+                          minimumSize: Size(double.infinity,
+                              50), // Set the minimum size to full width and height to 50
+                          maximumSize: Size(double.infinity,
+                              50), // Set the maximum size to full width and height to 50
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      InkWell(
+                        onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => LoginScreen(),
-                            ),
+                                builder: (context) => LoginScreen()),
                           );
                         },
-                        child: Text('Login'),
+                        child: Text(
+                          'Already have an account? Login',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            decoration: TextDecoration.underline,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

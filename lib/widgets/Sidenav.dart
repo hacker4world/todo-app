@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SideNav extends StatelessWidget {
-  final Function(String) onNavItemTap;
-
-  SideNav({required this.onNavItemTap});
+  const SideNav();
 
   @override
   Widget build(BuildContext context) {
@@ -36,24 +34,13 @@ class SideNav extends StatelessWidget {
             leading: Icon(Icons.assignment),
             title: Text('Tasks'),
             onTap: () {
-              onNavItemTap('Tasks');
               Navigator.pushNamed(context, '/tasks'); // Navigate to tasks page
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.build),
-            title: Text('Equipment'),
-            onTap: () {
-              onNavItemTap('Equipment');
-              Navigator.pushNamed(
-                  context, '/equipments'); // Navigate to equipments page
             },
           ),
           ListTile(
             leading: Icon(Icons.check_circle_outline),
             title: Text('Completed Tasks'),
             onTap: () {
-              onNavItemTap('Equipment');
               Navigator.pushNamed(
                   context, '/taskscompleted'); // Navigate to equipments page
             },
@@ -62,8 +49,7 @@ class SideNav extends StatelessWidget {
             leading: Icon(Icons.exit_to_app),
             title: Text('Sign Out'),
             onTap: () {
-              onNavItemTap('Sign Out');
-              // Add logic to sign out if needed
+              Navigator.pushNamed(context, '/login');
             },
           ),
         ],
