@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CompletedTasksScreen extends StatefulWidget {
   @override
@@ -10,6 +11,7 @@ class CompletedTasksScreen extends StatefulWidget {
 class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
   List<CompletedItem> completedItems = [];
   bool isLoading = true;
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   @override
   void initState() {
@@ -18,7 +20,9 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
   }
 
   Future<void> fetchCompletedTasks() async {
-    String url = 'http://localhost:3000/donetasks';
+    final SharedPreferences prefs = await _prefs;
+    final userID = prefs.getString('user_id');
+    String url = 'http://localhost:3000/donetasks?userID=$userID';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -106,7 +110,7 @@ class CompletedItem {
   final int? equipmentID;
   String? taskTitle;
   String? equipmentName;
-  final DateTime date;
+  final DateTime? date;
   final String? photo;
   final bool okay;
   final String? problem;
@@ -122,7 +126,7 @@ class CompletedItem {
     this.equipmentID,
     this.taskTitle,
     this.equipmentName,
-    required this.date,
+    this.date,
     this.photo,
     required this.okay,
     this.problem,
@@ -134,11 +138,12 @@ class CompletedItem {
   });
 
   factory CompletedItem.fromJson(Map<String, dynamic> json) {
+    print(json); // Debug print
     return CompletedItem(
       doneTaskID: json['doneTaskID'],
       taskID: json['taskID'],
       equipmentID: json['equipmentID'],
-      date: DateTime.parse(json['date']),
+      date: json['date'] != null ? DateTime.parse(json['date']) : null,
       photo: json['photo'],
       okay: json['okay'],
       problem: json['problem'],

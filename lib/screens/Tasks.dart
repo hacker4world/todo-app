@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:testing/widgets/ReportModal.dart';
 import 'package:testing/widgets/Sidenav.dart';
 import '../widgets/CompleteTaskModal.dart';
 
@@ -224,14 +225,64 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               IconButton(
                 icon: Icon(Icons.report_problem, color: Colors.red),
-                onPressed: () {
-                  // Handle reporting a problem
+                onPressed: () async {
+                  final SharedPreferences prefs = await _prefs;
+                  if (item is Task) {
+                    prefs.setInt('task_id', item.taskID);
+                    prefs.remove('equipment_id');
+                  } else {
+                    prefs.setInt('equipment_id', item.equipmentID);
+                    prefs.remove('task_id');
+                  }
+                  _openReportModal(context, item);
                 },
               ),
             ],
           )),
         ]);
       }).toList(),
+    );
+  }
+
+  void _openReportModal(BuildContext context, dynamic item) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return ReportModal(
+          onSubmit: (problem, solution) async {
+            final SharedPreferences prefs = await _prefs;
+
+            final data = {
+              "okay": 0,
+              "problem": problem,
+              "solution": solution,
+              "userID": int.parse(prefs.getString('user_id')!),
+              "roomID": prefs.getInt('room_id')!,
+              "taskID": null,
+              "equipmentID": null
+            };
+
+            if (prefs.containsKey('task_id') == false) {
+              data["taskID"] = null;
+              data["equipmentID"] = prefs.getInt('equipment_id')!;
+            } else {
+              data["taskID"] = prefs.getInt('task_id')!;
+              data["equipmentID"] = null;
+            }
+
+            final url = Uri.parse('http://localhost:3000/donetasks');
+
+            final responseDoneTask = await http.post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(data),
+            );
+
+            // Optionally, remove the item from the list or mark it as reported
+            _removeItemFromList(item);
+          },
+        );
+      },
     );
   }
 }
