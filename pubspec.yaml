@@ -16,6 +16,8 @@ dependencies:
   universal_html: ^2.0.5
   cupertino_icons: ^1.0.6
   camera: ^0.10.0+4
+  path_provider: ^2.0.11
+  path: ^1.8.0
 
 dependency_overrides:
   shared_preferences_platform_interface: ^2.0.0
