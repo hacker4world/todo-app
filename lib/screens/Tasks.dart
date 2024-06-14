@@ -277,7 +277,8 @@ class _TasksScreenState extends State<TasksScreen> {
               "roomID": prefs.getInt('room_id')!,
               "taskID": null,
               "equipmentID": null,
-              "photo": _fileName // Add the photo file name here
+              "photo":
+                  prefs.getString('fileName') // Add the photo file name here
             };
 
             if (prefs.containsKey('task_id') == false) {

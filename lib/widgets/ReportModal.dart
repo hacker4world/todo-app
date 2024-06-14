@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ReportModal extends StatefulWidget {
   final Function(String, String) onSubmit;
 
@@ -19,6 +21,7 @@ class _ReportModalState extends State<ReportModal> {
   TextEditingController solutionController = TextEditingController();
   File? _imageFile;
   String? _fileName;
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   Future<bool> hasCamera() async {
     if (Platform.isWindows) {
@@ -72,9 +75,9 @@ class _ReportModalState extends State<ReportModal> {
         final response = await http.Response.fromStream(streamedResponse);
         if (response.statusCode == 201) {
           final data = json.decode(response.body);
-          setState(() {
-            _fileName = data['fileName'];
-          });
+          final SharedPreferences prefs = await _prefs;
+          prefs.setString('fileName', data['fileName']);
+          print("uploaded image : ${data['fileName']}");
         } else {
           print('Failed to upload image: ${response.statusCode}');
         }
