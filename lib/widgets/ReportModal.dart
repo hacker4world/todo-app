@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -19,15 +20,40 @@ class _ReportModalState extends State<ReportModal> {
   File? _imageFile;
   String? _fileName;
 
+  Future<bool> hasCamera() async {
+    if (Platform.isWindows) {
+      // Initialize the cameras
+      try {
+        final cameras = await availableCameras();
+        return cameras.isNotEmpty;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false; // Default false for non-Windows platforms
+  }
+
   Future<void> _pickImageAndUpload() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-        source: Platform.isAndroid ? ImageSource.camera : ImageSource.gallery);
+
+    final XFile? image;
+
+    if (Platform.isAndroid) {
+      image = await picker.pickImage(source: ImageSource.camera);
+    } else if (Platform.isWindows) {
+      if (await hasCamera()) {
+        image = await picker.pickImage(source: ImageSource.camera);
+      } else {
+        image = await picker.pickImage(source: ImageSource.gallery);
+      }
+    } else {
+      image = await picker.pickImage(source: ImageSource.gallery);
+    }
 
     if (image != null) {
       final bytes = await image.readAsBytes();
       setState(() {
-        _imageFile = File(image.path);
+        _imageFile = File(image!.path);
       });
 
       final String uploadUrl = 'http://localhost:3000/upload';

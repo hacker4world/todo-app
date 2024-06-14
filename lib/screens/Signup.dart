@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:http/http.dart' as http;
+import 'package:camera/camera.dart';
 import 'Login.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -57,9 +59,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<bool> hasCamera() async {
+    if (Platform.isWindows) {
+      // Initialize the cameras
+      try {
+        final cameras = await availableCameras();
+        return cameras.isNotEmpty;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false; // Default false for non-Windows platforms
+  }
+
   void _capturePhoto() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    final XFile? image;
+
+    if (Platform.isAndroid) {
+      image = await picker.pickImage(source: ImageSource.camera);
+    } else if (Platform.isWindows) {
+      if (await hasCamera()) {
+        image = await picker.pickImage(source: ImageSource.camera);
+      } else {
+        image = await picker.pickImage(source: ImageSource.gallery);
+      }
+    } else {
+      image = await picker.pickImage(source: ImageSource.gallery);
+    }
 
     if (image != null) {
       final bytes = await image.readAsBytes();

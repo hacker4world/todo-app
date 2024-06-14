@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -24,9 +25,34 @@ class _ImageCaptureModalState extends State<ImageCaptureModal> {
   String? _fileName;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
+  Future<bool> hasCamera() async {
+    if (Platform.isWindows) {
+      // Initialize the cameras
+      try {
+        final cameras = await availableCameras();
+        return cameras.isNotEmpty;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false; // Default false for non-Windows platforms
+  }
+
   Future<void> _pickImageAndUpload() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    final XFile? image;
+
+    if (Platform.isAndroid) {
+      image = await picker.pickImage(source: ImageSource.camera);
+    } else if (Platform.isWindows) {
+      if (await hasCamera()) {
+        image = await picker.pickImage(source: ImageSource.camera);
+      } else {
+        image = await picker.pickImage(source: ImageSource.gallery);
+      }
+    } else {
+      image = await picker.pickImage(source: ImageSource.gallery);
+    }
 
     if (image != null) {
       final bytes = await image.readAsBytes();
