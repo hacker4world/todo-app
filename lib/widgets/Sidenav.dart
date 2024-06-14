@@ -13,7 +13,7 @@ class SideNav extends StatelessWidget {
             height: 100, // Adjust the height of the header
             child: DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.green,
+                color: Color(0xFF6A5ACD), // New color from the image
               ),
               child: Row(
                 children: [

@@ -9,8 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ImageCaptureModal extends StatefulWidget {
   final Function onComplete;
+  final dynamic item; // Add this line
 
-  ImageCaptureModal({required this.onComplete});
+  ImageCaptureModal(
+      {required this.onComplete, required this.item}); // Add item parameter
 
   @override
   _ImageCaptureModalState createState() => _ImageCaptureModalState();
@@ -79,6 +81,8 @@ class _ImageCaptureModalState extends State<ImageCaptureModal> {
           );
 
           print(requestData);
+
+          widget.onComplete(); // Call onComplete to remove the item
         } else {
           print('Failed to upload image: ${response.statusCode}');
         }
@@ -86,10 +90,6 @@ class _ImageCaptureModalState extends State<ImageCaptureModal> {
         print('Error uploading image: $e');
       }
     }
-  }
-
-  Future<String?> openFilePicker() async {
-    return null;
   }
 
   @override

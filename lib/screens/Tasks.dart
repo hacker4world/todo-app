@@ -19,7 +19,7 @@ class _TasksScreenState extends State<TasksScreen> {
   List<dynamic> weeklyItems = [];
   List<dynamic> monthlyItems = [];
   List<dynamic> yearlyItems = [];
-
+  String _fileName = "";
   bool isLoading = true;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -35,7 +35,6 @@ class _TasksScreenState extends State<TasksScreen> {
 
     String tasksUrl = 'http://localhost:3000/tasks';
     String equipmentsUrl = 'http://localhost:3000/equipments?roomID=$roomId';
-
     String completedTasksUrl = 'http://localhost:3000/donetasks';
 
     final tasksResponse = await http.get(Uri.parse(tasksUrl));
@@ -43,9 +42,12 @@ class _TasksScreenState extends State<TasksScreen> {
     final completedTasksResponse = await http.get(Uri.parse(completedTasksUrl));
 
     if (tasksResponse.statusCode == 200 &&
-        equipmentsResponse.statusCode == 200) {
+        equipmentsResponse.statusCode == 200 &&
+        completedTasksResponse.statusCode == 200) {
       List<dynamic> tasksData = json.decode(tasksResponse.body);
       List<dynamic> equipmentsData = json.decode(equipmentsResponse.body);
+      List<dynamic> completedTasksData =
+          json.decode(completedTasksResponse.body);
 
       List<Task> loadedTasks =
           tasksData.map((task) => Task.fromJson(task)).toList();
@@ -53,18 +55,21 @@ class _TasksScreenState extends State<TasksScreen> {
           .map((equipment) => Equipment.fromJson(equipment))
           .toList();
 
-      List<dynamic> completedTasksData =
-          json.decode(completedTasksResponse.body);
-
-      List<String> completedTaskIds =
-          completedTasksData.map((task) => task['taskID'].toString()).toList();
+      List<int> completedTaskIds = completedTasksData
+          .where((completedItem) => completedItem['taskID'] != null)
+          .map<int>((completedItem) => completedItem['taskID'] as int)
+          .toList();
+      List<int> completedEquipmentIds = completedTasksData
+          .where((completedItem) => completedItem['equipmentID'] != null)
+          .map<int>((completedItem) => completedItem['equipmentID'] as int)
+          .toList();
 
       tasks = loadedTasks
           .where((task) => !completedTaskIds.contains(task.taskID))
           .toList();
       equipments = loadedEquipments
-          .where(
-              (equipment) => !completedTaskIds.contains(equipment.equipmentID))
+          .where((equipment) =>
+              !completedEquipmentIds.contains(equipment.equipmentID))
           .toList();
 
       dailyItems = [
@@ -117,6 +122,7 @@ class _TasksScreenState extends State<TasksScreen> {
           onComplete: () {
             _removeItemFromList(item);
           },
+          item: item, // Pass the item here
         );
       },
     );
@@ -141,7 +147,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Container(
                       width: MediaQuery.of(context).size.width,
-                      child: buildDataTable(dailyItems),
+                      child: buildDataTable(dailyItems, 'daily'),
                     ),
                   ),
                   SizedBox(height: 32.0),
@@ -151,7 +157,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Container(
                       width: MediaQuery.of(context).size.width,
-                      child: buildDataTable(weeklyItems),
+                      child: buildDataTable(weeklyItems, 'weekly'),
                     ),
                   ),
                   SizedBox(height: 32.0),
@@ -161,7 +167,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Container(
                       width: MediaQuery.of(context).size.width,
-                      child: buildDataTable(monthlyItems),
+                      child: buildDataTable(monthlyItems, 'monthly'),
                     ),
                   ),
                   SizedBox(height: 32.0),
@@ -171,7 +177,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Container(
                       width: MediaQuery.of(context).size.width,
-                      child: buildDataTable(yearlyItems),
+                      child: buildDataTable(yearlyItems, 'yearly'),
                     ),
                   ),
                 ],
@@ -180,7 +186,18 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget buildDataTable(List<dynamic> items) {
+  Widget buildDataTable(List<dynamic> items, String type) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No $type items',
+          style: TextStyle(
+            color: Colors.red,
+          ),
+        ),
+      );
+    }
+
     return DataTable(
       columns: [
         DataColumn(label: Text('Title')),
@@ -259,7 +276,8 @@ class _TasksScreenState extends State<TasksScreen> {
               "userID": int.parse(prefs.getString('user_id')!),
               "roomID": prefs.getInt('room_id')!,
               "taskID": null,
-              "equipmentID": null
+              "equipmentID": null,
+              "photo": _fileName // Add the photo file name here
             };
 
             if (prefs.containsKey('task_id') == false) {

@@ -12,6 +12,7 @@ class _RoomSelectState extends State<RoomSelect> {
   List<Map<String, dynamic>> _rooms = [];
   int? _selectedRoomId;
   String? _selectedRoomName;
+  int? _selectedRoomBranch;
 
   @override
   void initState() {
@@ -46,8 +47,25 @@ class _RoomSelectState extends State<RoomSelect> {
       await prefs.setInt('room_id', _selectedRoomId!);
       await prefs.setString('room_name', _selectedRoomName!);
 
+      String url = "http://localhost:3000/rooms/${_selectedRoomId}";
+
+      final data = {
+        'roomName': _selectedRoomName,
+        'status': 2,
+        "branchID": _selectedRoomBranch
+      };
+
+      try {
+        final response = await http.put(Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(data));
+
+        Navigator.pushReplacementNamed(context, '/tasks');
+      } catch (e) {
+        print('Error updating room: $e');
+      }
+
       // Navigate to tasks page
-      Navigator.pushReplacementNamed(context, '/tasks');
     } else {
       showDialog(
         context: context,
@@ -87,6 +105,8 @@ class _RoomSelectState extends State<RoomSelect> {
                         _selectedRoomId = value;
                         _selectedRoomName = _rooms.firstWhere(
                             (room) => room['roomID'] == value)['roomName'];
+                        _selectedRoomBranch = _rooms.firstWhere(
+                            (room) => room['roomID'] == value)['branchID'];
                       });
                     },
                     items: _rooms.map((room) {
@@ -109,7 +129,19 @@ class _RoomSelectState extends State<RoomSelect> {
                   SizedBox(height: 16.0),
                   ElevatedButton(
                     onPressed: _selectRoom,
-                    child: Text('Select Room'),
+                    child: Text(
+                      'Select Room',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Theme.of(context).primaryColor,
+                      minimumSize: Size(double.infinity, 50),
+                      maximumSize: Size(double.infinity, 50),
+                    ),
                   ),
                 ],
               ),
